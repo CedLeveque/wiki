@@ -34,13 +34,15 @@ jobs:
       - name: Build HTML from AsciiDoc
         run: |
           mkdir -p public
-          # Recherche récursive de tous les fichiers .adoc / .asciidoc dans src/
-          find src -type f \( -name "*.adoc" -o -name "*.asciidoc" \) -exec asciidoctor -D public {} +
+          # Activation des options Bash pour gérer les sous-dossiers et éviter de planter si aucun fichier n'est trouvé
+          shopt -s globstar nullglob
           
-          # Si aucun index.html n'a été créé, on en génère un automatiquement
+          # Compilation des fichiers situés dans docs/src/
+          asciidoctor -D public docs/src/**/*.adoc docs/src/*.adoc
+
+          # Création d'une page index.html automatique si aucune n'est présente
           if [ ! -f public/index.html ]; then
-            echo "<!DOCTYPE html><html><head><title>Wiki Procedures</title></head><body>" > public/index.html
-            echo "<h1>Index des procédures</h1><ul>" >> public/index.html
+            echo "<!DOCTYPE html><html><head><title>Wiki Procedures</title></head><body><h1>Index des procédures</h1><ul>" > public/index.html
             for f in public/*.html; do
               [ -e "$f" ] || continue
               filename=$(basename "$f")
