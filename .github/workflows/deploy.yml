@@ -30,26 +30,16 @@ jobs:
 
       - name: Install Asciidoctor
         run: gem install asciidoctor
-
       - name: Build HTML from AsciiDoc
         run: |
           mkdir -p public
-          # Recherche récursive de tous les fichiers .adoc / .asciidoc dans src/
-          find src -type f \( -name "*.adoc" -o -name "*.asciidoc" \) -exec asciidoctor -D public {} +
+          echo "=== Contenu du répertoire courant ==="
+          ls -la
+          echo "=== Contenu de src/ (si présent) ==="
+          ls -la src/ || echo "Le dossier src n'existe pas à la racine !"
           
-          # Si aucun index.html n'a été créé, on en génère un automatiquement
-          if [ ! -f public/index.html ]; then
-            echo "<!DOCTYPE html><html><head><title>Wiki Procedures</title></head><body>" > public/index.html
-            echo "<h1>Index des procédures</h1><ul>" >> public/index.html
-            for f in public/*.html; do
-              [ -e "$f" ] || continue
-              filename=$(basename "$f")
-              if [ "$filename" != "index.html" ]; then
-                echo "<li><a href=\"$filename\">${filename%.html}</a></li>" >> public/index.html
-              fi
-            done
-            echo "</ul></body></html>" >> public/index.html
-          fi
+          echo "=== Lancement de la compilation ==="
+          asciidoctor -D public src/*.adoc || asciidoctor -D public src/**/*.adoc || echo "Aucun fichier adoc trouvé"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
