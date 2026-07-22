@@ -2,7 +2,7 @@ name: Deploy AsciiDoc Wiki
 
 on:
   push:
-    branches: ["main"] # ou "master" selon la branche principale
+    branches: ["main"]
 
 permissions:
   contents: read
@@ -23,7 +23,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Ruby (for Asciidoctor)
+      - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
@@ -34,14 +34,15 @@ jobs:
       - name: Build HTML from AsciiDoc
         run: |
           mkdir -p public
-          # Compile tous les fichiers .adoc vers public/
-          asciidoctor -D public src/*.adoc
-
-          # Crée un index.html automatique s'il n'y a pas d'index.adoc
+          # Recherche récursive de tous les fichiers .adoc / .asciidoc dans src/
+          find src -type f \( -name "*.adoc" -o -name "*.asciidoc" \) -exec asciidoctor -D public {} +
+          
+          # Si aucun index.html n'a été créé, on en génère un automatiquement
           if [ ! -f public/index.html ]; then
-            echo "<!DOCTYPE html><html><head><title>Wiki Index</title></head><body>" > public/index.html
+            echo "<!DOCTYPE html><html><head><title>Wiki Procedures</title></head><body>" > public/index.html
             echo "<h1>Index des procédures</h1><ul>" >> public/index.html
             for f in public/*.html; do
+              [ -e "$f" ] || continue
               filename=$(basename "$f")
               if [ "$filename" != "index.html" ]; then
                 echo "<li><a href=\"$filename\">${filename%.html}</a></li>" >> public/index.html
@@ -49,6 +50,7 @@ jobs:
             done
             echo "</ul></body></html>" >> public/index.html
           fi
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
