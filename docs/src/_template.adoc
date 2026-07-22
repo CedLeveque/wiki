@@ -1,0 +1,59 @@
+= Template
+Connectivité
+:icons: font
+:toc: left
+:imagesdir: ../assets/
+:data-uri:
+:sectnums:
+
+[red]#a compléter#
+
+toc::[]
+
+////
+== Chapitre
+
+== Chapitre avec tableau
+.tableau
+[cols="50,50", options="header"]
+|===
+^| Col A ^| Col B 
+| A1 | B1 
+| A2 | B2 
+| A3 | B3 
+|===
+
+== Chapitre avec code
+[source,bash]
+----
+sudo apt update
+sudo apt install docker.io docker-compose -y
+sudo systemctl enable --now docker
+----
+
+== Chapitre avec image
+image::nom.png[nom, width=500, align="center"]
+
+== Chapitre avec tableau
+.tableau
+[cols="50,50", options="header"]
+|===
+^| Col A ^| Col B 
+| A1 | B1 
+| A2 | B2 
+| A3 | B3 
+|===
+
+notif :
+
+TIP (Astuce / Idée 💡) : Parfait pour proposer une meilleure méthode.
+
+NOTE (Information ℹ️) : Pour ajouter une précision utile.
+
+IMPORTANT (Important ❗) : Pour quelque chose d'essentiel à ne pas rater.
+
+WARNING (Avertissement ⚠️) : Pour prévenir d'un problème potentiel.
+
+CAUTION (Prudence 🔥) : Le niveau maximum d'alerte (ex: risque de perte de données).
+
+////

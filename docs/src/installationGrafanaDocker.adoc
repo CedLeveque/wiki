@@ -1,0 +1,181 @@
+= Installation de Grafana avec Docker (Ubuntu)
+v1.0, 2026-03-06
+:toc: macro
+:icons: font
+:source-highlighter: highlight.js
+
+toc::[]
+
+== 1. Pré-requis
+Docker Compose doit être installé :
+
+[source,bash]
+----
+sudo apt update
+sudo apt install docker.io docker-compose -y
+sudo systemctl enable --now docker
+----
+
+Accorder les droits à l'utilisateur courant :
+
+[source,bash]
+----
+# 1. Crée le groupe s'il n'existe pas
+sudo groupadd docker
+
+# 2. Ajoute l'utilisateur ($USER prend automatiquement le nom actuel)
+sudo usermod -aG docker $USER
+
+# 3. Force l'application immédiate des droits dans ce terminal
+newgrp docker
+----
+
+== 2. Configuration du projet
+Créer un dossier et un fichier nommé docker-compose.yml :
+[source,bash]
+----
+mkdir grafana-timescale-lab && cd grafana-timescale-lab
+nano docker-compose.yaml
+----
+Copier-coller le contenu suivant dans le fichier :
+[source,YAML]
+----
+version: '3.8'
+services:
+  # Base de données TimescaleDB
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: timescaledb
+    restart: always
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - POSTGRES_DB=mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - tsdata:/var/lib/postgresql/data
+
+  # Interface de visualisation Grafana
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - timescaledb
+    volumes:
+      - grafanadata:/var/lib/grafana
+
+volumes:
+  tsdata:
+  grafanadata:
+----
+
+== 3. Lancement de l'environnement
+
+Lancer les conteneurs en mode "détaché" :
+[source,bash]
+----
+docker compose up -d
+----
+
+Si la commande docker compose (avec l'espace) ne focntionne pas, il faut installer le pluging v2 de docker compose pour bénéficier des corrections de bugs et dernières mise à jour :
+
+[source,bash]
+----
+sudo apt update && sudo apt install docker-compose-v2
+----
+
+== 4. Configuration de la connexion
+Une fois les conteneurs lancés, suivre ces étapes :
+
+* 1. Accéder à Grafana : Ouvrir le navigateur sur http://localhost:3000.
+* 2. Connexion : Identifiant par défaut admin / admin (le mot de passe devra être changé).
+* 3. Ajouter la source de données :
+** Aller dans Connections > Data Sources.
+** Cliquer sur Add data source et chercher PostgreSQL.
+** Paramètres à remplir :
+*** Host : timescaledb:5432 (utiliser le nom du service Docker).
+*** Database : mydb
+*** User : admin
+*** Password : password123
+*** TLS Mode : disable (pour un test local).
+*** Version : 15 (ou la version choisie dans le yaml).
+*** TimescaleDB : Activer l'option "TimescaleDB" en bas de page.
+
+== 5. test (SQL)
+Ce test consiste à à créer une table et y injecter des données manuellement pour valider le bon fonctionnement des applicatifs.
+
+TIP: Cette commande permet d'accéder à la console de la base de données :
+
+[source,bash]
+----
+docker exec -it timescaledb psql -U admin -d mydb
+----
+
+Voici un exemple rapide pour créer une Hypertable (le cœur de TimescaleDB) :
+
+[source,sql]
+----
+-- Créer une table standard
+CREATE TABLE metrics (
+  time        TIMESTAMPTZ       NOT NULL,
+  sensor_id   INTEGER           NOT NULL,
+  temperature DOUBLE PRECISION  NULL
+);
+
+-- Transformer en Hypertable partitionnée par le temps
+SELECT create_hypertable('metrics', 'time');
+
+-- Insérer quelques données factices
+INSERT INTO metrics (time, sensor_id, temperature) VALUES
+(NOW(), 1, 22.5),
+(NOW() - INTERVAL '1 minute', 1, 21.8);
+----
+
+NOTE: Dans Grafana, pour requêter ces données, il faudra utiliser des macros SQL comme $__timeFilter(time) pour que le graphique s'adapte automatiquement à la période sélectionnée dans l'interface.
+
+== 6. Configuration de Grafana
+
+=== 6.1. Ajout de la base de données (PostgreSQL/Timescale)
+
+Une fois connecté à l'interface de grafana (http://localhost:3000, 3000 correspond au port configuré dans le fichier YAML précédemment), dans la barre latérale gauche :
+
+* Cliquer sur l'icône "Connections", puis sur "Data Sources".
+* Cliquer ensuite sur le bouton bleu "Add data source".
+* Dans la barre de recherche, taper PostgreSQL et cliquer dessus.
+* Remplir les paramètres de connexion :
+
+.Paramètres de connexion
+[cols="10,15,75", options="header"]
+|===
+^| Champ ^| Valeur ^| Description
+| Host | timescaledb:5432 | Utiliser le nom du service Docker, pas "localhost".
+| DataBase | mydb | Le nom de la base créé dans le fichier YAML.
+| User | admin | L'utilisateur défini dans le fichier YAML.
+| Password | password123 | Le mot de passe défini dans le fichier YAML.
+| TLS Mode | disable | En local on n'utilise pas de certificat.
+|===
+
+* Dans la section "PostgreSQL details" :
+** Version : Choisir 15 (celle du fichier YAML).
+** TimescaleDB : Activer l'interrupteur (Switch). Cela permet à Grafana d'utiliser des fonctions d'optimisation spécifiques aux séries temporelles.
+
+=== 6.2. Test de la connexion
+Tojours dans la barre latérale gauche, tout en bas, cliquer sur "Save & test".
+
+Si un bandeau vert "Database Connection OK", apparait, Grafana et TimescaleDB sont configurés correctement et communiquent ensemble.
+
+== 7. Création d'un dashboard
+
+Créer un nouveau dashbord
+
+Clique sur "Add visualization".
+
+Sélectionne la source PostgreSQL que tu viens de créer.
+
+Tu vas voir un éditeur de requêtes. Par défaut, il essaie de t'aider avec des menus déroulants, mais pour le vissage, on passera vite en mode "Code" (bouton en haut à droite de la zone de requête) pour écrire du SQL.
+
+Le concept à retenir : Dans Grafana, une visualisation = une requête SQL. Si ta requête renvoie une colonne time et une colonne numérique (le couple), Grafana tracera le point automatiquement.

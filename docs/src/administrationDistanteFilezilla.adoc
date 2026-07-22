@@ -1,0 +1,116 @@
+= Template
+Administration distante Filezilla
+:icons: font
+:toc: left
+:imagesdir: ../assets/
+:data-uri:
+
+[red]#a compléter#
+
+toc::[]
+
+== Contexte
+
+Cette produre décrit la méthode d'administration de Filezilla server à partir d'un pc distant connecté directement sur le pc cible en ethernet.
+
+image::contexteAdministrationFilezillaDistante.png[Administration filezilla distante]
+
+Cette procédure est valable pour un pc cible de type siemens IPC en configuration dizibox.
+
+== Prérequis
+
+* Configuration des adresses ip fixes sur les pc
+* Installation et configuration serveur et de l'interface d'administration de Filezilla sur le pc cible
+
+TIP: Se référer à la procédure ####
+
+* Installation de l'interface d'administration de Filezilla server sur le pc distant
+
+== Procédure
+
+////
+Sur le PC distant (Serveur) - Configuration de la carte réseau dédiée à la maintenance :
+Adresse IP : 10.0.0.1 (exemple)
+Masque de sous-réseau : 255.255.255.0
+Laissez la passerelle et les DNS vides.
+Sur le PC de maintenance :
+Adresse IP : 10.0.0.2 (exemple)
+Masque de sous-réseau : 255.255.255.0
+Laissez la passerelle et les DNS vides.
+
+Étape 2 : Configuration ultra-sécurisée de FileZilla Server
+
+Sur le PC distant, ouvrez l'interface d'administration locale de FileZilla Server.
+Allez dans Server > Configure > Administration.
+Dans la section Listeners, supprimez les entrées existantes (127.0.0.1 ou 0.0.0.0).
+Ajoutez une nouvelle adresse et saisissez l'adresse IP du port dédié de ce PC. Dans notre exemple : 10.0.0.1 (et gardez le port 14148).
+Assurez-vous toujours qu'un mot de passe fort est configuré.
+Cliquez sur OK.
+
+Étape 3 : Le Pare-feu (allégé)
+Le pare-feu de Windows sur le serveur distant bloquera par défaut la connexion, même sur ce câble direct. Il faut donc créer la règle, mais nous allons la restreindre.
+Sur le PC distant, ouvrez le Pare-feu Windows avec fonctions avancées.
+Créez une Nouvelle règle de trafic entrant > Port > TCP > Port local spécifique : 14148 > Autoriser la connexion.
+Bonus de sécurité (Optionnel) : Dans les propriétés de cette règle que vous venez de créer, allez dans l'onglet Étendue. Dans la section "Adresse IP distante", au lieu de "Toute adresse IP", choisissez "Ces adresses IP" et ajoutez l'adresse IP de votre PC de maintenance (10.0.0.2). Ainsi, seul votre PC de maintenance pourra franchir le pare-feu.
+////
+
+
+Étape 4 : Connexion avec le PC de maintenance
+Branchez votre PC de maintenance sur le port dédié.
+
+Ouvrez l'interface d'administration FileZilla sur votre PC de maintenance.
+Dans la fenêtre de connexion, entrez :
+Host : 10.0.0.1 (L'IP dédiée sur le serveur)
+Port : 14148
+Password : Le mot de passe que vous avez défini.
+Validez.
+
+Avec cette architecture, vous garantissez que l'administration du serveur FTP est physiquement et logiquement isolée du reste du trafic, ce qui est la meilleure pratique possible.
+
+////
+== 1. Chapitre
+
+== 2. Chapitre avec tableau
+.tableau
+[cols="50,50", options="header"]
+|===
+^| Col A ^| Col B 
+| A1 | B1 
+| A2 | B2 
+| A3 | B3 
+|===
+
+== 3. Chapitre avec code
+[source,bash]
+----
+sudo apt update
+sudo apt install docker.io docker-compose -y
+sudo systemctl enable --now docker
+----
+
+== 4. Chapitre avec image
+image::connectiviteFlextrackDev.png[connectivité flextrack dev]
+
+== 5. Chapitre avec tableau
+.tableau
+[cols="50,50", options="header"]
+|===
+^| Col A ^| Col B 
+| A1 | B1 
+| A2 | B2 
+| A3 | B3 
+|===
+
+notif :
+
+TIP (Astuce / Idée 💡) : Parfait pour proposer une meilleure méthode.
+
+NOTE (Information ℹ️) : Pour ajouter une précision utile.
+
+IMPORTANT (Important ❗) : Pour quelque chose d'essentiel à ne pas rater.
+
+WARNING (Avertissement ⚠️) : Pour prévenir d'un problème potentiel.
+
+CAUTION (Prudence 🔥) : Le niveau maximum d'alerte (ex: risque de perte de données).
+
+////

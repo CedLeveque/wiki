@@ -1,0 +1,59 @@
+name: Deploy AsciiDoc Wiki
+
+on:
+  push:
+    branches: ["main"] # ou "master" selon la branche principale
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby (for Asciidoctor)
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+
+      - name: Install Asciidoctor
+        run: gem install asciidoctor
+
+      - name: Build HTML from AsciiDoc
+        run: |
+          mkdir -p public
+          # Compile tous les fichiers .adoc vers public/
+          asciidoctor -D public src/*.adoc
+
+          # Crée un index.html automatique s'il n'y a pas d'index.adoc
+          if [ ! -f public/index.html ]; then
+            echo "<!DOCTYPE html><html><head><title>Wiki Index</title></head><body>" > public/index.html
+            echo "<h1>Index des procédures</h1><ul>" >> public/index.html
+            for f in public/*.html; do
+              filename=$(basename "$f")
+              if [ "$filename" != "index.html" ]; then
+                echo "<li><a href=\"$filename\">${filename%.html}</a></li>" >> public/index.html
+              fi
+            done
+            echo "</ul></body></html>" >> public/index.html
+          fi
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'public'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

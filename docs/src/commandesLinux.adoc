@@ -1,0 +1,59 @@
+= Commandes Linux
+OS
+:icons: font
+:toc: left
+:imagesdir: ../assets/
+:data-uri:
+:sectnums:
+
+toc::[]
+
+== Commandes standard
+
+== Maintenance
+=== Gestion des erreurs
+
+Popup Problème logiciel détecté :
+
+Pour lister les applications qui ont planté utiliser la commande suivante :
+
+[source,bash]
+----
+ls -la /var/crash/
+----
+
+Cette commande affichera des fichiers nommés selon le logiciel coupable (par exemple : _usr_bin_firefox.1000.crash ou _usr_bin_gnome-shell.1000.crash)
+
+=== Lecture du détail de l'erreur
+
+Pour lire le contenu d'un rapport de crash sans ouvrir un fichier texte illisible de plusieurs mégaoctets :
+
+Option A : En ligne de commande (recommandé)
+Pour obtenir un résumé propre et lisible par un humain :
+
+[source,bash]
+----
+apport-cli -c /var/crash/NOM_DU_FICHIER.crash
+
+(Remplacer NOM_DU_FICHIER par le nom trouvé à l'étape 1).
+----
+
+Option B : Consulter les journaux système en temps réelPour voir le journal système (journalctl) au moment où le problème survient :  Bash
+
+[source,bash]
+----
+journalctl -p err -b
+
+(Affiche uniquement les erreurs du démarrage actuel).
+----
+
+=== Supprimer les messages
+
+=> Solution temporaire (recommandée)
+
+Supprimez les anciens rapports de plantage. La fenêtre n'apparaîtra plus au démarrage (jusqu'au prochain vrai plantage). Permet de purger les messages qui n'ont plus lieu d'être pour faire le focus sur les problèmes courants :  
+
+[source,bash]
+----
+sudo rm /var/crash/*
+----

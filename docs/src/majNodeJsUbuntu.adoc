@@ -1,0 +1,28 @@
+1. Installer NVM
+Téléchargez et installez le script NVM avec cette commande :
+
+Bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+2. Recharger votre terminal
+Pour que votre terminal prenne en compte la nouvelle commande nvm, vous devez le recharger (ou le fermer et le rouvrir) :
+
+Bash
+source ~/.bashrc
+3. Installer et utiliser Node.js 20
+Maintenant, demandez à NVM d'installer la dernière version de Node 20 et de l'utiliser par défaut :
+
+Bash
+nvm install 20
+nvm use 20
+nvm alias default 20
+4. Vérifier que tout est bon
+Tapez cette commande pour vérifier votre version :
+
+Bash
+node -v
+(Cela devrait vous répondre quelque chose comme v20.x.x)
+
+Une fois que c'est fait, le problème est réglé ! Vous pouvez relancer sereinement votre commande de création dans le bon dossier :
+
+Bash
+npx @grafana/create-plugin@latest

@@ -1,0 +1,180 @@
+= Environnements python avec VS Code
+Programmation
+:icons: font
+:toc: left
+:imagesdir: ./images/global/
+
+toc::[]
+
+source : https://blog.stephane-robert.info/docs/developper/programmation/python/environnements-virtuels/
+
+[red]#a terminer#
+[red]#a reprendre dans les termes#
+[red]#a valider#
+
+== 1. Créer un environnement virtuel avec venv
+Le module venv est intégré à Python depuis la version 3.3. Pas besoin d’installer quoi que ce soit.
+
+=== Étape 1 : Vérifier Python
+Avant de commencer, vérifiez que Python 3.3+ est installé :
+[source,bash]
+----
+python3 --version
+----
+Sortie attendue : Python 3.11.6 (ou version supérieure)
+
+WARNING: Python 2 vs Python 3 : Sur certains systèmes, python pointe vers Python 2. Utilisez toujours python3 explicitement, ou vérifiez avec python --version.
+
+=== Étape 2 : Créer l’environnement
+Dans le dossier de votre projet, exécutez :
+[source,bash]
+----
+python3 -m venv .venv
+----
+Cette commande crée un dossier .venv contenant :
+
+.contenu commande .venv
+[cols="50,50", options="header"]
+|===
+^| Dossier/Fichier ^| Contenu 
+| bin/ (Linux/macOS) ou Scripts/ (Windows) | Exécutables Python et scripts d’activation
+| lib/ | Packages installés dans cet environnement
+| include/ | Fichiers d’en-tête pour les extensions C
+| pyvenv.cfg | Configuration de l’environnement
+|===
+
+TIP: Convention de nommage : Utilisez .venv (avec le point) plutôt que venv ou mon_env. Le point le rend caché sur Linux/macOS et la plupart des .gitignore l’excluent déjà par défaut.
+
+=== Étape 3 : Vérifier la création
+Listez le contenu du dossier créé :
+[source,bash]
+----
+ls -la .venv/
+----
+
+Vous devez voir les dossiers bin/, lib/, include/ et le fichier pyvenv.cfg.
+
+== 2.Activer l’environnement virtuel
+Créer l’environnement ne l’active pas automatiquement. L’activation modifie votre terminal pour utiliser le Python de l’environnement au lieu du Python global.
+
+Commandes d’activation par système :
+
+=== Linux / macOS
+[source,bash]
+----
+source .venv/bin/activate
+----
+Alternative avec point :
+[source,bash]
+----
+. .venv/bin/activate
+----
+=== Windows (PowerShell)
+[source,bash]
+----
+.venv\Scripts\Activate.ps1
+----
+Si vous avez une erreur de politique d’exécution :
+[source,bash]
+----
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+----
+=== Windows (cmd)
+[source,bash]
+----
+.venv\Scripts\activate.bat
+----
+
+== 3.Comment savoir si l’environnement est actif ?
+Après activation, votre prompt change pour afficher le nom de l’environnement :
+[source,bash]
+----
+# Avant activation
+user@machine:~/mon-projet$
+
+# Après activation
+(.venv) user@machine:~/mon-projet$
+----
+Vérification supplémentaire : la commande which python (Linux/macOS) ou where python (Windows) doit pointer vers .venv/bin/python :
+[source,bash]
+----
+which python
+----
+TIP: L'activation est locale au terminal : L’activation ne concerne que le terminal actuel. Si vous ouvrez un nouveau terminal, vous devez réactiver l’environnement. Chaque session est indépendante.
+
+== 4.Désactiver l’environnement
+Quand vous avez terminé de travailler sur le projet :
+[source,bash]
+----
+deactivate
+----
+Le prompt redevient normal et les commandes python et pip utilisent à nouveau l’installation globale.
+
+== 5.Installer des packages avec pip
+Une fois l’environnement activé, pip installe les packages uniquement dans cet environnement.
+
+=== Installer un package
+[source,bash]
+----
+pip install requests
+----
+Cette commande :
+
+** 1.Télécharge le package requests depuis PyPI
+** 2.L’installe dans .venv/lib/python3.x/site-packages/
+** 3.Installe automatiquement ses dépendances (urllib3, certifi, etc.)
+
+=== Installer une version spécifique
+Pour garantir la compatibilité, spécifiez une version exacte :
+
+[source,bash]
+----
+pip install requests==2.31.0
+----
+.Syntaxes de version disponibles
+[cols="50,50", options="header"]
+|===
+^| Syntaxe ^| Signification 
+| requests==2.31.0 | Version exacte
+| requests>=2.28.0 | Version minimale
+| requests>=2.28,<3.0 | Plage de versions
+| requests~=2.31.0 | Compatible avec 2.31.x
+|===
+Lister les packages installés
+[source,bash]
+----
+pip list
+----
+Sortie exemple
+[source,bash]
+----
+Package            Version
+------------------ ---------
+certifi            2023.11.17
+charset-normalizer 3.3.2
+idna               3.6
+pip                23.3.1
+requests           2.31.0
+urllib3            2.1.0
+----
+
+=== Mettre à jour un package
+[source,bash]
+----
+pip install --upgrade requests
+----
+
+=== Désinstaller un package
+[source,bash]
+----
+pip uninstall requests
+----
+Confirmez avec y quand demandé.
+
+TIP: Pour comprendre pourquoi un package est installé :
+[source,bash]
+----
+pip show requests
+----
+
+Affiche les métadonnées incluant Requires: (dépendances) et Required-by: (qui en dépend).

@@ -1,0 +1,18 @@
+= WIKI
+Informatique industrielle
+:icons: font
+:toc: left
+:imagesdir: /assets/
+
+== Configurations et Installations
+
+* xref:installationGrafanaDocker.adoc[]
+* xref:installationNodeRed.adoc[]
+* xref:majNodeJsUbuntu.adoc[]
+* xref:pluginsGrafana.adoc[]
+
+== Procédures spécifiques Airbus
+* xref:flextracksMonitoring.adoc[]
+
+== Liens externes 
+

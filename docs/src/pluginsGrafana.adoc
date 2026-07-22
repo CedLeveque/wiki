@@ -1,0 +1,41 @@
+= Plugins Grafana
+v1.0, 2026-02-25
+:toc: macro
+:icons: font
+:source-highlighter: highlight.js
+
+// Le bloc ci-dessus est l'en-tête (métadonnées, table des matières, etc.)
+
+toc::[]
+
+== 1. Pré-requis
+installation de npm
++
+[source,bash]
+----
+sudo apt install npm
+----
+
+== 2. Étapes de configuration
+
+. **Ouvrez votre terminal.**
+. **Naviguez vers le dossier de destination.** Pour lier un bloc de code à une étape numérotée sans casser la numérotation, utilisez le signe `+` :
++
+[source,bash]
+----
+cd /chemin/vers/mon/projet
+mkdir nouveau_dossier
+----
+
+. **Lancez le script d'installation.**
+Voici un exemple avec du code Python :
++
+[source,python]
+----
+def lancer_procedure():
+    print("La procédure est en cours...")
+
+lancer_procedure()
+----
+
+> **NOTE:** Vous pouvez utiliser des encarts comme celui-ci pour attirer l'attention sur une information importante.

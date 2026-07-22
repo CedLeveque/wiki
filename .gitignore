@@ -1,0 +1,19 @@
+# --- Fichiers système ---
+.DS_Store
+Thumbs.db
+
+# --- VS Code ---
+.vscode/
+*.code-workspace
+
+# --- Asciidoc (fichiers temporaires de rendu) ---
+.asciidoctor/
+
+# --- Fichiers/répertoires temporaires adoc ---
+aMettreAuPropre/
+
+# --- Sorties html de vérification
+html/
+
+# --- template(s)
+src/_template.adoc
