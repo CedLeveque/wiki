@@ -16,7 +16,7 @@ aMettreAuPropre/
 html/
 
 # --- template(s)
-src/_template.adoc
+./src/_template.adoc
 
 # --- En attente
-src/aFaire/
+./src/aFaire/
