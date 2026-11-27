@@ -7,7 +7,7 @@ Informatique industrielle
 == Configurations et Installations
 
 === VSCode
-* xref:environnementsPythonVsCode.adoc[]
+* xref:environnementsPythonVSCode.adoc[]
 
 === Linux
 * xref:erreursUbuntu.adoc[]
