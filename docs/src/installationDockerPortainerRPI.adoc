@@ -1,0 +1,654 @@
+= Installation Docker avec Portainer sur RPI
+Connectivité
+:icons: font
+:toc: left
+:imagesdir: ../assets/
+:data-uri:
+:sectnums:
+
+
+toc::[]
+
+Docker et Portainer fonctionnent parfaitement sur un RPI. C'est une combinaison très populaire pour transformer ce mini-ordinateur en serveur personnel ou en homelab.
+
+== Prérequis conseillés
+
+• Système d'exploitation : Un OS 64 bits (comme Raspberry Pi OS 64-bit) est fortement recommandé pour assurer la compatibilité de la grande majorité des images Docker.
+• Mémoire vive (RAM) : Le Raspberry Pi 4 , par exemple, existe en versions 2 Go, 4 Go ou 8 Go de RAM. Les modèles avec 4 Go ou 8 Go sont idéaux pour faire tourner Docker, Portainer et plusieurs conteneurs en parallèle.
+• Stockage : Privilégier une bonne carte microSD (ou un SSD externe via USB 3.0 pour plus de fiabilité et de vitesse).
+
+== Installation sur le RPI
+
+=== Installation de Docker
+
+L'installation peut se faire via le script officiel en se connectant en SSH sur le Raspberry Pi :
+
+[source,bash]
+----
+curl -sSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+----
+
+=== Installation de Portainer Agent
+
+Executer la commande suivante :
+
+[source,bash]
+----
+docker run -d \
+  -p 9001:9001 \
+  --name portainer_agent \
+  --restart=always \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /var/lib/docker/volumes:/var/lib/docker/volumes \
+  -v /:/host \
+  portainer/agent:latest
+----
+
+ou lancer le yaml suivant avec docker :
+
+[source,yaml]
+----
+services:
+  portainer_agent:
+    image: portainer/agent:latest
+    container_name: portainer_agent
+    restart: always
+    ports:
+      - "9001:9001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+      - /:/host
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+        reservations:
+          memory: 32M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+----
+
+* Exposition réseau : Le conteneur écoute par défaut sur le port 9001.
+* Accès matériel : Les volumes montés donnent à l'agent les droits nécessaires pour gérer les conteneurs, les volumes et le système de fichiers hôte.
+* Limitation CPU et RAM (deploy.resources) : L'agent est très léger et consomme généralement moins de 30 Mo de RAM. Les plafonds à 0.50 CPU (soit un demi-cœur sur les quatre du Pi 4) et 128 Mo de RAM garantissent qu'il ne saturera jamais le système en cas d'anomalie.
+* Rotation des logs (logging) : Cette option limite la taille des journaux à 3 fichiers de 10 Mo maximum. Cela évite que les logs n'emplissent inutilement le stockage et n'usent prématurément la carte microSD.
+* Redémarrage automatique (restart: always) : Le service se relance tout seul après une coupure de courant ou un redémarrage du RPI.
+
+
+=== Déploiement et vérification
+
+* Lancer le conteneur : Exécuter docker compose up -d dans le dossier contenant le fichier.
+* Vérifier la consommation réelle : Taper docker stats portainer_agent pour observer l'utilisation en direct du processeur et de la mémoire vive.
+
+== Installation sur le PC
+
+Docker doit être installé également sur le pc via la même procédure qu'au chapitre précédent.
+
+=== Installation de Portainer CE
+
+Portainer s'installe lui-même directement sous forme de conteneur Docker. Il est possible utiliser Docker Compose ou la commande suivante :bash
+
+[source,bash]
+----
+docker volume create portainer_data
+docker run -d -p 8000:8000 -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:latest
+----
+
+=== Accéder à l'interface :
+
+Ouvrir un navigateur web et taper l'adresse IP du Raspberry Pi suivie du port sécurisé :
+https://<IP_DU_RASPBERRY_PI>:9443
+
+=== Connection de l'agent depuis le Portainer du PC
+
+Une fois le conteneur démarré sur le Raspberry Pi, ouvrir l'interface web du Portainer principal (sur le PC) et suivre ces étapes :
+
+* Ouvrir l'assistant d'ajout : Aller dans le menu de gauche, cliquer sur Environments (Environnements), puis sur le bouton Add environment en haut à droite.
+* Choisir le type de connexion : Sélectionner Docker Standalone, puis cliquer sur Start Wizard.
+* Sélectionner la méthode Agent : Dans l'onglet de connexion, choisissir l'option Agent (et non Socket ou API).
+* Renseigner les informations :
+** Name : Donner un nom clair à la cible, par exemple Raspberry-Pi-4.
+** Environment address : Saisir l'adresse IP locale du Raspberry Pi suivie du port 9001, par exemple 192.168.1.50:9001.
+* Valider : Cliquer sur Connect en bas de page.
+
+=== Vérifier et sécuriser l'installation
+
+• Basculement d'environnement : Retourner sur l'accueil (Home) de Portainer sur le PC. Le RPI apparaît désormais dans la liste et il est possible de cliquer dessus pour gérer ses conteneurs.
+• Adresse IP fixe : Penser à attribuer une IP statique au RPI depuis la configuration du routeur (bail DHCP statique). Si son IP change après un redémarrage, le PC perdra la connexion avec l'agent.
+• Pare-feu (si actif) : Si ufw ou un autre pare-feu est actif sur le Raspberry Pi, autoriser le trafic entrant sur le port 9001 depuis l'adresse IP du PC.
+
+== Mise en application avec création de deux stacks
+
+Cet exemple propose de deployer 2 stacks pour deux projets différents. l'une avec hivemq, nodered, timescaledb, grafana et l'autre avec mosquito, nodered, timescaledb, grafana. Les conteneurs nodered, timescaledb, grafana doivent être dupliqués pour chaque stack afin de bien cloisonner les projets.
+
+Pour éviter tout conflit réseau ou d'accès web, chaque stack doit posséder ses propres noms de conteneurs, ses propres volumes et des ports exposés différents sur l'hôte.
+
+Il est possible de déployer ces deux configurations directement depuis l'interface Portainer (en sélectionnant l'environnement du RPI > Stacks > Add stack).
+
+[cols="33, 33, 33", options="header"]
+|===
+^| Service ^| Service	Stack 1 (Projet HiveMQ) ^| Stack 2 (Projet Mosquitto)
+| Broker | MQTT	HiveMQ (1883 / UI : 8080) |	Mosquitto (1884)
+| Node-RED | http://<IP_PI>:1880 |	http://<IP_PI>:1881
+| Grafana	| http://<IP_PI>:3000 |	http://<IP_PI>:3001
+| TimescaleDB	| Interne uniquement (timescaledb:5432) |	Interne uniquement (timescaledb:5432)
+|===
+
+ NOTE : TimescaleDB n'a pas besoin de port exposé vers l'extérieur car Node-RED et Grafana communiquent avec lui directement via le réseau interne privé de chaque stack.
+
+
+=== Fichier docker-compose.yml — Stack 1 (HiveMQ)
+
+Cette stack utilise l'édition communautaire HiveMQ CE (compatible ARM64 pour Raspberry Pi 4) avec les ports standards.
+[source,yaml]
+----
+services:
+  hivemq:
+    image: hivemq/hivemq-ce:latest
+    container_name: s1_hivemq
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "8080:8080"
+    volumes:
+      - s1_hivemq_data:/opt/hivemq/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  nodered:
+    image: nodered/node-red:latest
+    container_name: s1_nodered
+    restart: unless-stopped
+    ports:
+      - "1880:1880"
+    volumes:
+      - s1_nodered_data:/data
+    environment:
+      - TZ=Europe/Paris
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: s1_timescaledb
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=admin_s1
+      - POSTGRES_PASSWORD=MotDePasseSecurise1!
+      - POSTGRES_DB=iot_projet1
+    volumes:
+      - s1_timescale_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: s1_grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=AdminGrafana1!
+    volumes:
+      - s1_grafana_data:/var/lib/grafana
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  s1_hivemq_data:
+  s1_nodered_data:
+  s1_timescale_data:
+  s1_grafana_data:
+----
+
+=== Fichier docker-compose.yml — Stack 2 (Mosquitto)
+
+Cette stack décale les ports externes (1884, 1881, 3001) et utilise le préfixe s2_ pour isoler complètement ses données.
+
+[source,yaml]
+----
+services:
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: s2_mosquitto
+    restart: unless-stopped
+    ports:
+      - "1884:1883"
+    volumes:
+      - s2_mosquitto_config:/mosquitto/config
+      - s2_mosquitto_data:/mosquitto/data
+      - s2_mosquitto_log:/mosquitto/log
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  nodered:
+    image: nodered/node-red:latest
+    container_name: s2_nodered
+    restart: unless-stopped
+    ports:
+      - "1881:1880"
+    volumes:
+      - s2_nodered_data:/data
+    environment:
+      - TZ=Europe/Paris
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: s2_timescaledb
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=admin_s2
+      - POSTGRES_PASSWORD=MotDePasseSecurise2!
+      - POSTGRES_DB=iot_projet2
+    volumes:
+      - s2_timescale_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: s2_grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=AdminGrafana2!
+    volumes:
+      - s2_grafana_data:/var/lib/grafana
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  s2_mosquitto_config:
+  s2_mosquitto_data:
+  s2_mosquitto_log:
+  s2_nodered_data:
+  s2_timescale_data:
+  s2_grafana_data:
+----
+
+=== Points d'attention importants pour le déploiement
+
+* Communication interne entre conteneurs : Dans Node-RED et Grafana, il n'y a pas besoin d'utiliser l'IP du RPi pour joindre les autres services de la même stack. Utiliser directement le nom du service comme nom d'hôte : hivemq (ou mosquitto) sur le port 1883, et timescaledb sur le port 5432.
+* Configuration initiale de Mosquitto (Stack 2) : Depuis la version 2 d'Eclipse Mosquitto, le broker refuse les connexions externes par défaut sans fichier de configuration. Avant ou juste après le démarrage de la Stack 2, il faudra créer un fichier mosquitto.conf dans le volume s2_mosquitto_config contenant listener 1883 et allow_anonymous true (ou un fichier de mots de passe). Voir chapitre suivant.
+* Capacité mémoire du RPi : Avec les limites configurées ci-dessus, l'ensemble des 8 conteneurs est plafonné à environ 2,8 Go de RAM maximum. Ce dimensionnement tourne très confortablement sur un Raspberry Pi 4 de 4 Go ou 8 Go de RAM.
+
+=== Création du fichier mosquitto.conf
+
+Pour configurer Mosquitto dans la Stack 2, il suffit de créer le fichier mosquitto.conf directement dans le volume Docker créé par Portainer, puis de redémarrer le conteneur.
+
+Voici la méthode en ligne de commande (via SSH sur votre RPI) selon le niveau de sécurité souhaité.
+
+==== Option 1 : Sans authentification (idéal pour tester en réseau local)
+
+Cette configuration autorise n'importe quel appareil ou conteneur à publier et lire des messages sur le broker sans identifiant.
+
+1. Créer le fichier de configuration directement dans le volume :
+Note : Portainer préfixe généralement les volumes avec le nom de la stack. Si la stack s'appelle stack2, le volume se nomme stack2_s2_mosquitto_config.
+
+[source,bash]
+----
+sudo mkdir -p /var/lib/docker/volumes/stack2_s2_mosquitto_config/_data
+sudo bash -c 'cat << EOF > /var/lib/docker/volumes/stack2_s2_mosquitto_config/_data/mosquitto.conf
+listener 1883
+allow_anonymous true
+persistence true
+persistence_location /mosquitto/data/
+log_dest file /mosquitto/log/mosquitto.log
+EOF'
+----
+
+2. Redémarrer le conteneur Mosquitto :bash
+
+[source,bash]
+----
+docker restart s2_mosquitto
+----
+
+
+==== Option 2 : Avec authentification par mot de passe (recommandé)
+
+Cette configuration bloque les connexions anonymes et exige un nom d'utilisateur et un mot de passe.
+
+1. Créer le fichier mosquitto.conf sécurisé
+
+[source,bash]
+----
+sudo mkdir -p /var/lib/docker/volumes/stack2_s2_mosquitto_config/_data
+sudo bash -c 'cat << EOF > /var/lib/docker/volumes/stack2_s2_mosquitto_config/_data/mosquitto.conf
+listener 1883
+allow_anonymous false
+password_file /mosquitto/config/password.txt
+persistence true
+persistence_location /mosquitto/data/
+log_dest file /mosquitto/log/mosquitto.log
+EOF'
+----
+
+2. Générer le fichier des mots de passe via le conteneur :
+Remplacer mon_utilisateur par un identifiant au choix. Le terminal demandera ensuite de saisir et confirmer le mot de passe 
+
+[source,bash]
+----
+docker exec -it s2_mosquitto mosquitto_passwd -c /mosquitto/config/password.txt mon_utilisateur
+----
+
+3. Appliquer les bonnes permissions et redémarrer :
+
+Mosquitto exige que le fichier de mots de passe appartienne à l'utilisateur interne 1883 pour éviter un avertissement de sécurité
+
+[source,bash]
+----
+docker exec -it s2_mosquitto chown 1883:1883 /mosquitto/config/password.txt
+docker exec -it s2_mosquitto chmod 0700 /mosquitto/config/password.txt
+docker restart s2_mosquitto
+----
+
+
+==== Vérification du bon fonctionnement
+
+* Consulter les journaux : Depuis Portainer (icône Logs à côté de s2_mosquitto) ou via docker logs s2_mosquitto, vérifie5 que le conteneur démarre sans erreur de permission.
+* Tester depuis Node-RED : Dans Node-RED de la Stack 2, configurer un nœud mqtt in ou mqtt out avec le serveur mosquitto sur le port 1883 (et renseigner les identifiants dans l'onglet Security pour l'option 2).
+
+
+
+////
+Mise à jour wiki :
+
+git add .
+git commit -m "Ajout nouvelle procedure"
+git push
+////
+
+////
+== Chapitre
+
+== Chapitre avec tableau
+.tableau
+[cols="50,50", options="header"]
+|===
+^| Col A ^| Col B 
+| A1 | B1 
+| A2 | B2 
+| A3 | B3 
+|===
+
+== Chapitre avec code
+[source,bash]
+----
+sudo apt update
+sudo apt install docker.io docker-compose -y
+sudo systemctl enable --now docker
+----
+
+== Chapitre avec image
+image::nom.png[nom, width=500, align="center"]
+
+== Chapitre avec tableau
+.tableau
+[cols="50,50", options="header"]
+|===
+^| Col A ^| Col B 
+| A1 | B1 
+| A2 | B2 
+| A3 | B3 
+|===
+
+notif :
+
+TIP (Astuce / Idée 💡) : Parfait pour proposer une meilleure méthode.
+
+NOTE (Information ℹ️) : Pour ajouter une précision utile.
+
+IMPORTANT (Important ❗) : Pour quelque chose d'essentiel à ne pas rater.
+
+WARNING (Avertissement ⚠️) : Pour prévenir d'un problème potentiel.
+
+CAUTION (Prudence 🔥) : Le niveau maximum d'alerte (ex: risque de perte de données).
+
+.Glossaire
+[cols="15,35,35,15", options="header"]
+|===
+^| Abréviation ^| Anglais ^| Français ^| Thème
+
+| HTML
+| HyperText Markup Language
+| Langage de balisage conçu pour structurer et afficher les pages web.
+| Autre
+
+| DNS
+| Domain Name System
+| Service permettant de traduire un nom de domaine en adresse IP.
+| Réseau
+
+| IP
+| Internet Protocol
+| Protocole de communication assurant l'adressage et l'acheminement des paquets de données sur un réseau.
+| Réseau
+
+| TCP
+| Transmission Control Protocol
+| Protocole de transport orienté connexion garantissant la livraison fiable et ordonnée des données.
+| Réseau
+
+| UDP
+| User Datagram Protocol
+| Protocole de transport sans connexion privilégiant la rapidité de transmission à la fiabilité.
+| Réseau
+
+| DHCP
+| Dynamic Host Configuration Protocol
+| Service distribuant automatiquement les adresses IP et paramètres réseau aux équipements.
+| Réseau
+
+| VPN
+| Virtual Private Network
+| Technologie créant un tunnel sécurisé et chiffré sur un réseau public.
+| Cybersécurité
+
+| LAN
+| Local Area Network
+| Réseau informatique restreint à une zone géographique limitée (bureau, bâtiment).
+| Réseau
+
+| WAN
+| Wide Area Network
+| Réseau informatique couvrant de grandes distances géographiques (ex. Internet).
+| Réseau
+
+| VLAN
+| Virtual Local Area Network
+| Réseau local logique permettant de segmenter le trafic indépendamment de la topologie physique.
+| Réseau
+
+| NAT
+| Network Address Translation
+| Mécanisme modifiant les adresses IP source ou destination dans les en-têtes de paquets lors de leur transit.
+| Réseau
+
+| FW
+| Firewall
+| Équipement ou logiciel analysant et filtrant le trafic réseau selon des règles de sécurité définies.
+| Cybersécurité
+
+| IDS
+| Intrusion Detection System
+| Système de surveillance analysant le trafic réseau pour détecter des activités suspectes ou malveillantes.
+| Cybersécurité
+
+| IPS
+| Intrusion Prevention System
+| Système de sécurité analysant le trafic et bloquant automatiquement les attaques détectées.
+| Cybersécurité
+
+| SIEM
+| Security Information and Event Management
+| Plateforme centralisant et analysant les journaux d'événements pour détecter les menaces de sécurité.
+| Cybersécurité
+
+| SOC
+| Security Operations Center
+| Centre opérationnel chargé de surveiller, détecter et répondre aux incidents de cybersécurité.
+| Cybersécurité
+
+| EDR
+| Endpoint Detection and Response
+| Outil de surveillance continue des terminaux permettant de détecter et contrer les menaces avancées.
+| Cybersécurité
+
+| XDR
+| Extended Detection and Response
+| Solution intégrant la collecte et la corrélation de données de sécurité sur plusieurs couches (réseau, terminaux, cloud).
+| Cybersécurité
+
+| SSL / TLS
+| Secure Sockets Layer / Transport Layer Security
+| Protocoles de cryptographie assurant la confidentialité et l'intégrité des échanges sur réseau.
+| Cybersécurité
+
+| HTTPS
+| HyperText Transfer Protocol Secure
+| Protocole de communication web sécurisé par le chiffrement TLS/SSL.
+| Cybersécurité
+
+| SSH
+| Secure Shell
+| Protocole réseau sécurisé permettant d'accéder à distance et de commander un équipement de manière chiffrée.
+| Cybersécurité
+
+| OT
+| Operational Technology
+| Technologies matérielles et logicielles détectant ou causant un changement par le suivi direct ou le contrôle d'équipements industriels.
+| Connectivité
+
+| IT
+| Information Technology
+| Ensemble des technologies de traitement, de stockage et de transmission de l'information.
+| Autre
+
+| IoT
+| Internet of Things
+| Réseau d'objets physiques connectés capables de collecter et d'échanger des données.
+| Connectivité
+
+| IIoT
+| Industrial Internet of Things
+| Application des technologies de l'IoT au secteur industriel pour optimiser les processus de production.
+| Connectivité
+
+| MQTT
+| Message Queuing Telemetry Transport
+| Protocole de messagerie léger de type publication/abonnement, adapté aux contraintes des objets connectés.
+| Connectivité
+
+| OPC UA
+| Open Platform Communications Unified Architecture
+| Standard de communication interplateforme, orienté objet et sécurisé pour l'échange de données industrielles.
+| Connectivité
+
+| PROFINET
+| Process Field Net
+| Standard Ethernet industriel ouvert conçu pour la collecte de données et le contrôle en temps réel d'équipements d'automatisation.
+| Connectivité
+
+| PROFIBUS
+| Process Field Bus
+| Standard de réseau de terrain sériel utilisé pour relier des automates à des capteurs et actionneurs industriels.
+| Connectivité
+
+| PLC (API)
+| Programmable Logic Controller
+| Automate programmable industriel exécutant des commandes d'asservissement et de régulation.
+| Connectivité
+
+| SCADA
+| Supervisory Control and Data Acquisition
+| Système de télégestion et de contrôle supervisant les installations industrielles à grande échelle.
+| Connectivité
+
+| HMI (IHM)
+| Human-Machine Interface
+| Interface graphique ou matérielle permettant à un opérateur d'interagir avec une machine.
+| Connectivité
+
+| MAC
+| Media Access Control
+| Adresse physique unique attribuée à une carte réseau pour l'identifier au niveau de la couche liaison.
+| Réseau
+
+| BGP
+| Border Gateway Protocol
+| Protocole de routage externe échangeant des informations de routage entre systèmes autonomes sur Internet.
+| Réseau
+
+| OSPF
+| Open Shortest Path First
+| Protocole de routage interne permettant de déterminer le chemin le plus court au sein d'un réseau IP.
+| Réseau
+
+| IAM
+| Identity and Access Management
+| Ensemble de processus et d'outils garantissant que les bonnes personnes accèdent aux bonnes ressources.
+| Cybersécurité
+
+| MFA
+| Multi-Factor Authentication
+| Méthode d'authentification exigeant au moins deux preuves d'identité distinctes avant d'accorder l'accès.
+| Cybersécurité
+
+| DLP
+| Data Loss Prevention
+| Stratégie et outils visant à empêcher la fuite ou l'exfiltration non autorisée de données sensibles.
+| Cybersécurité
+
+| CVE
+| Common Vulnerabilities and Exposures
+| Dictionnaire public répertoriant et identifiant de manière unique les vulnérabilités de sécurité connues.
+| Cybersécurité
+
+| SOC (Sonde)
+| Network Security Sensor / Probe
+| Équipement d'analyse réseau configuré pour capturer, inspecter et remonter le trafic malveillant.
+| Cybersécurité
+
+| PoE
+| Power over Ethernet
+| Technologie permettant d'alimenter un équipement électrique via le câble réseau Ethernet.
+| Connectivité
+
+| RFID
+| Radio Frequency Identification
+| Technologie d'identification automatique utilisant les ondes radio pour lire des données stockées sur une puce.
+| Connectivité
+|===
+
+
+
+
+

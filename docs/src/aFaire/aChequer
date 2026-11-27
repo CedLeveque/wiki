@@ -1,0 +1,99 @@
+psql -U admin -d postgres
+COPY (SELECT * FROM flextrack_listener) to '/tmp/export_listener.csv' WITH CSV HEADER;
+
+
+RabbitMQ => c'est quoi ? ()
+
+Red panda
+
+ESP32
+
+TimescaleDB & grafana
+    optimisations et performance
+
+1. Utiliser les Macros Grafana (Le plus crucial)
+
+Grafana intègre des macros spécifiques pour PostgreSQL/TimescaleDB qui permettent de rendre les requêtes dynamiques en fonction de ce que l'utilisateur regarde (plage horaire, niveau de zoom).
+• $__timeFilter(time_column) : Limite strictement la recherche à la plage horaire sélectionnée dans l'interface de Grafana. Ne chargez jamais toute la table.
+• $__interval ou $__timeGroup : Permet d'adapter dynamiquement la taille des paquets de données (le "bucket") selon que l'utilisateur regarde une période de 1 heure ou de 30 jours.
+❌ À éviter (requête brute non optimisée) :
+sql
+SELECT time, avg(temperature) 
+FROM metrics 
+WHERE device_id = 'A1' 
+GROUP BY time ORDER BY time;
+Utilisez le code avec précaution.
+Problème : Si vous regardez sur 6 mois, Grafana va tenter d'afficher des millions de points, ce qui fera ramer votre navigateur et saturer la mémoire.
+Dynamic graphique optimisé :
+sql
+SELECT 
+  time_bucket($__interval, time) AS time, -- Regroupement dynamique
+  avg(temperature) AS "Température Moyenne"
+FROM metrics
+WHERE $__timeFilter(time) AND device_id = 'A1' -- Filtre temporel strict
+GROUP BY time
+ORDER BY time;
+Utilisez le code avec précaution.
+
+2. Implémenter les "Continuous Aggregates" (Agrégats Continus)
+
+C'est l'arme absolue de TimescaleDB pour Grafana. Au lieu de calculer la moyenne ou la somme de millions de lignes à chaque rafraîchissement du tableau de bord, TimescaleDB calcule ces données en arrière-plan et les stocke dans une vue matérialisée auto-actualisée.
+1. Créer l'agrégat (Exemple : calcul par heure) :sql
+CREATE MATERIALIZED VIEW metrics_hourly
+WITH (timescaledb.continuous) AS
+SELECT 
+  time_bucket('1 hour', time) AS bucket,
+  device_id,
+  avg(temperature) as avg_temp
+FROM metrics
+GROUP BY bucket, device_id;
+Utilisez le code avec précaution.
+2. Configurer la politique de rafraîchissement :sql
+SELECT add_continuous_aggregate_policy('metrics_hourly',
+  start_offset => INTERVAL '3 days',
+  end_offset => INTERVAL '1 hour',
+  schedule_interval => INTERVAL '1 hour');
+Utilisez le code avec précaution.
+3. Dans Grafana : Vous ciblez directement la vue metrics_hourly pour vos graphiques long terme. Les requêtes s'exécuteront instantanément.
+
+3. Activer la compression native de TimescaleDB
+
+La compression par morceaux (chunks) de TimescaleDB permet non seulement de réduire l'espace disque (jusqu'à 90 %), mais elle accélère aussi radicalement les requêtes de Grafana sur l'historique ancien, car moins de données sont lues sur le disque.
+sql
+-- 1. Activer la compression sur l'hypertable
+ALTER TABLE metrics SET (
+  timescaledb.compressed,
+  timescaledb.compressed_segmentby = 'device_id', -- Regrouper par identifiant pour optimiser le scan
+  timescaledb.compressed_orderby = 'time DESC'
+);
+
+-- 2. Compresser automatiquement les données de plus de 7 jours
+SELECT add_compression_policy('metrics', INTERVAL '7 days');
+Utilisez le code avec précaution.
+
+4. Gérer le "Gap Filling" (Remplissage des vides)
+
+Lorsque vous regroupez des données par intervalles de temps (time_bucket), si un appareil n'a pas envoyé de données pendant une heure, Grafana affichera un "trou" ou cassera la ligne du graphique.
+Utiliser les fonctions de Gap Filling de TimescaleDB directement dans le SQL évite à Grafana de devoir interpoler des données lourdes côté client.
+sql
+SELECT 
+  -- Force l'affichage de chaque intervalle même s'il est vide
+  time_bucket_gapfill('$__interval', time, start => $__timeFrom(), finish => $__timeTo()) AS time,
+  -- Remplace les valeurs vides (NULL) par la dernière valeur connue (Locf = Last Observation Carried Forward)
+  locf(avg(temperature)) AS "Température"
+FROM metrics
+WHERE $__timeFilter(time)
+GROUP BY time
+ORDER BY time;
+Utilisez le code avec précaution.
+
+Summary des bonnes pratiques Grafana & TimescaleDB
+
+
+Fonctionnalité	Rôle principal	Impact Grafana
+$__timeFilter()	Restreindre la recherche au zoom actuel.	Évite les plantages de requêtes (Timeouts).
+Continuous Aggregates	Pré-calculer les métriques lourdes en arrière-plan.	Chargement des dashboards en millisecondes.
+Compression Policy	Compresser les anciennes partitions (chunks).	Moins d'I/O disque sur les requêtes historiques.
+time_bucket_gapfill()	Générer des séries temporelles continues sans trous.	Graphiques propres et sans cassures visuelles.
+
+Pour aller plus loin, souhaitez-vous des conseils sur le dimensionnement des chunks (morceaux d'hypertables) en mémoire RAM ou sur la configuration des index composites pour vos requêtes Grafana les plus fréquentes ?

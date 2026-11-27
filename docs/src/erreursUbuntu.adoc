@@ -1,0 +1,62 @@
+= Gestion des Problèmes et Popups Software sur Ubuntu
+:icons: font
+:toc: left
+:imagesdir: ../assets/
+:data-uri:
+:sectnums:
+
+Guide pratique pour gérer, nettoyer et désactiver la popup d'erreur logiciel (Apport) sur Ubuntu.
+
+toc::[]
+
+== Lister les rapports d'erreurs
+
+Les rapoorts se situent à l'emplacement suivant : /var/crash/
+
+Ce répertoire contient les rapports qui peuvent être lus directmeent avec un éditeur de texte
+
+== Nettoyer les rapports d'erreurs récents
+
+Pour faire disparaître l'avertissement immédiatement sans désactiver complètement le système d'alerte, il suffit de supprimer les anciens rapports de crash accumulés dans le dossier `/var/crash/`.
+
+=== Exécuter la commande de nettoyage
+
+[source,bash]
+----
+sudo rm /var/crash/*
+----
+
+NOTE: Pour vérifier le fonctionnement, afficher le contenu du dossier avec la commande `ls /var/crash/`. S'il est vide, la popup ne réapparaîtra pas au démarrage.
+
+== Désactiver définitivement le service Apport
+
+Si la notification d'erreur réapparaît de manière intempestive, il est possible de désactiver le service **Apport** responsable de ces alertes.
+
+=== Procéder à la désactivation
+
+.Procédure de désactivation d'Apport
+[cols="20,80", options="header"]
+|===
+^| Étape ^| Action
+| 1 | Ouvrir le fichier de configuration : `sudo nano /etc/default/apport`
+| 2 | Modifier la ligne `enabled=1` en `enabled=0`
+| 3 | Sauvegarder (`Ctrl + O` puis `Entrée`) et quitter (`Ctrl + X`)
+| 4 | Arrêter le service actif : `sudo systemctl stop apport.service`
+|===
+
+WARNING: Désactiver Apport empêchera l'envoi automatique de rapports de bugs aux développeurs d'Ubuntu, ce qui peut masquer des dysfonctionnements sous-jacents.
+
+TIP: Pour vérifier le statut du service après modification, exécuter `systemctl status apport.service`. Le statut doit indiquer `inactive (dead)`.
+
+== Résoudre les problèmes par la mise à jour du système
+
+Si la popup est causée par un bug logiciel récurrent, mettre à jour l'ensemble des paquets permet souvent de corriger le dysfonctionnement.
+
+=== Exécuter la mise à jour
+
+[source,bash]
+----
+sudo apt update && sudo apt upgrade -y
+----
+
+IMPORTANT: S'assurer d'avoir une connexion Internet stable lors de l'exécution des mises à jour système.

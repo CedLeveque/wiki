@@ -17,3 +17,6 @@ html/
 
 # --- template(s)
 src/_template.adoc
+
+# --- En attente
+src/aFaire/

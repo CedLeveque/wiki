@@ -1,0 +1,369 @@
+= Procédure d'installation et de configuration de ChartDB sur Docker
+Connectivité
+:icons: font
+:toc: left
+:imagesdir: ../assets/
+:data-uri:
+:sectnums:
+
+Procédure opérationnelle pour le déploiement, la configuration et l'utilisation de ChartDB afin de générer et capitaliser les schémas de bases de données relationnelles (PostgreSQL / TimescaleDB) via Docker.
+
+toc::[]
+
+////
+Mise à jour wiki :
+
+git add .
+git commit -m "Ajout nouvelle procedure ChartDB"
+git push
+////
+
+== Présentation de la solution
+
+ChartDB est un outil de visualisation et de modélisation de bases de données open source. Il permet de générer des diagrammes Entité-Association (ERD) interactifs sans nécessiter de connexion directe permanente entre l'outil et l'instance de base de données, grâce à l'exécution d'une requête d'introspection sécurisée (*Smart Query*).
+
+== Prérequis
+
+* Disposer d'un serveur ou poste de travail exécutant Linux Ubuntu.
+* Avoir le service Docker et le plugin Docker Compose installés et fonctionnels.
+* Disposer des accès administrateur (`psql`) à l'instance cible (ex. PostgreSQL ou TimescaleDB).
+* La commande psql doit être installée :
++
+[source,bash]
+----
+sudo apt install postgresql-client-common
+----
+
+== Déploiement de ChartDB avec Docker
+
+=== Déploiement via Docker Compose (Recommandé)
+
+1. Créer un répertoire dédié au service sur l'hôte :
++
+[source,bash]
+----
+mkdir -p /opt/chartdb && cd /opt/chartdb
+----
+
+2. Créer le fichier `docker-compose.yml` :
++
+[source,bash]
+----
+nano docker-compose.yml
+----
+
+3. Insérer la configuration suivante :
++
+[source,yaml]
+----
+version: '3.8'
+
+services:
+  chartdb:
+    image: ghcr.io/chartdb/chartdb:latest
+    container_name: chartdb
+    ports:
+      - "8080:80"
+    environment:
+      - DISABLE_ANALYTICS=true
+    restart: unless-stopped
+----
+
+4. Lancer le conteneur en arrière-plan :
++
+[source,bash]
+----
+docker compose up -d
+----
+
+=== Déploiement alternatif via Docker Run
+
+Exécuter la commande suivante dans un terminal :
+
+[source,bash]
+----
+docker run -d \
+  --name chartdb \
+  -p 8080:80 \
+  -e DISABLE_ANALYTICS=true \
+  --restart unless-stopped \
+  ghcr.io/chartdb/chartdb:latest
+----
+
+NOTE (Information ℹ️) : Le service est désormais accessible depuis un navigateur web à l'adresse `http://localhost:8080` ou `http://<IP_SERVEUR>:8080`.
+
+== Introspection et génération du schéma
+
+=== Récupération de la Smart Query
+
+1. Ouvrir l'interface web de ChartDB (`http://localhost:8080`).
+2. Cliquer sur **Create new diagram**.
+3. Sélectionner le moteur de base de données correspondant (ex. **PostgreSQL** pour une instance PostgreSQL ou TimescaleDB).
+4. Copier la requête SQL (*Smart Query*) générée automatiquement par l'interface.
+
+=== Exécution sur le conteneur cible (PostgreSQL / TimescaleDB)
+
+1. Se connecter au conteneur Docker hébergeant la base de données :
++
+[source,bash]
+----
+docker exec -it <nom_conteneur_db> psql -U <utilisateur> -d <nom_de_base>
+----
+
+2. Coller et exécuter la *Smart Query* récupérée à l'étape précédente.
+
+3. Copier l'intégralité du résultat JSON retourné par le terminal.
+
+WARNING (Avertissement ⚠️) : S'assurer de copier l'intégralité du flux JSON sans tronquer le résultat pour éviter les erreurs de parsing lors de l'importation.
+
+=== Importation et visualisation dans ChartDB
+
+1. Retourner sur l'interface de ChartDB.
+2. Coller le résultat JSON dans la zone prévue à cet effet.
+3. Valider pour générer le schéma interactif.
+4. Réorganiser visuellement les tables si nécessaire.
+
+TIP (Astuce / Idée 💡) : Exporter le schéma au format d'image (PNG/SVG) ou sauvegarder la définition JSON pour conserver un instantané de la structure de la base dans la documentation du projet.
+
+== Exploitation et maintenance
+
+.Commandes usuelles de maintenance
+[cols="50,50", options="header"]
+|===
+^| Action ^| Commande 
+| Consulter les journaux d'événements | `docker logs -f chartdb`
+| Redémarrer le service | `docker restart chartdb`
+| Mettre à jour l'image Docker | `docker compose pull && docker compose up -d`
+| Arrêter le service | `docker compose down`
+|===
+
+.Glossaire
+[cols="15,35,35,15", options="header"]
+|===
+^| Abréviation ^| Anglais ^| Français ^| Thème
+
+| DDL
+| Data Definition Language
+| Sous-ensemble du langage SQL utilisé pour définir et modifier la structure des objets d'une base de données (`CREATE`, `ALTER`, `DROP`).
+| Autre
+
+| ERD
+| Entity-Relationship Diagram
+| Représentation graphique des entités d'une base de données et des relations qui existent entre elles.
+| Autre
+
+| JSON
+| JavaScript Object Notation
+| Format de données textuel structuré, léger et lisible par l'humain comme par la machine.
+| Autre
+
+| HTML
+| HyperText Markup Language
+| Langage de balisage conçu pour structurer et afficher les pages web.
+| Autre
+
+| DNS
+| Domain Name System
+| Service permettant de traduire un nom de domaine en adresse IP.
+| Réseau
+
+| IP
+| Internet Protocol
+| Protocole de communication assurant l'adressage et l'acheminement des paquets de données sur un réseau.
+| Réseau
+
+| TCP
+| Transmission Control Protocol
+| Protocole de transport orienté connexion garantissant la livraison fiable et ordonnée des données.
+| Réseau
+
+| UDP
+| User Datagram Protocol
+| Protocole de transport sans connexion privilégiant la rapidité de transmission à la fiabilité.
+| Réseau
+
+| DHCP
+| Dynamic Host Configuration Protocol
+| Service distribuant automatiquement les adresses IP et paramètres réseau aux équipements.
+| Réseau
+
+| VPN
+| Virtual Private Network
+| Technologie créant un tunnel sécurisé et chiffré sur un réseau public.
+| Cybersécurité
+
+| LAN
+| Local Area Network
+| Réseau informatique restreint à une zone géographique limitée (bureau, bâtiment).
+| Réseau
+
+| WAN
+| Wide Area Network
+| Réseau informatique couvrant de grandes distances géographiques (ex. Internet).
+| Réseau
+
+| VLAN
+| Virtual Local Area Network
+| Réseau local logique permettant de segmenter le trafic indépendamment de la topologie physique.
+| Réseau
+
+| NAT
+| Network Address Translation
+| Mécanisme modifiant les adresses IP source ou destination dans les en-têtes de paquets lors de leur transit.
+| Réseau
+
+| FW
+| Firewall
+| Équipement ou logiciel analysant et filtrant le trafic réseau selon des règles de sécurité définies.
+| Cybersécurité
+
+| IDS
+| Intrusion Detection System
+| Système de surveillance analysant le trafic réseau pour détecter des activités suspectes ou malveillantes.
+| Cybersécurité
+
+| IPS
+| Intrusion Prevention System
+| Système de sécurité analysant le trafic et bloquant automatiquement les attaques détectées.
+| Cybersécurité
+
+| SIEM
+| Security Information and Event Management
+| Plateforme centralisant et analysant les journaux d'événements pour détecter les menaces de sécurité.
+| Cybersécurité
+
+| SOC
+| Security Operations Center
+| Centre opérationnel chargé de surveiller, détecter et répondre aux incidents de cybersécurité.
+| Cybersécurité
+
+| EDR
+| Endpoint Detection and Response
+| Outil de surveillance continue des terminaux permettant de détecter et contrer les menaces avancées.
+| Cybersécurité
+
+| XDR
+| Extended Detection and Response
+| Solution intégrant la collecte et la corrélation de données de sécurité sur plusieurs couches (réseau, terminaux, cloud).
+| Cybersécurité
+
+| SSL / TLS
+| Secure Sockets Layer / Transport Layer Security
+| Protocoles de cryptographie assurant la confidentialité et l'intégrité des échanges sur réseau.
+| Cybersécurité
+
+| HTTPS
+| HyperText Transfer Protocol Secure
+| Protocole de communication web sécurisé par le chiffrement TLS/SSL.
+| Cybersécurité
+
+| SSH
+| Secure Shell
+| Protocole réseau sécurisé permettant d'accéder à distance et de commander un équipement de manière chiffrée.
+| Cybersécurité
+
+| OT
+| Operational Technology
+| Technologies matérielles et logicielles détectant ou causant un changement par le suivi direct ou le contrôle d'équipements industriels.
+| Connectivité
+
+| IT
+| Information Technology
+| Ensemble des technologies de traitement, de stockage et de transmission de l'information.
+| Autre
+
+| IoT
+| Internet of Things
+| Réseau d'objets physiques connectés capables de collecter et d'échanger des données.
+| Connectivité
+
+| IIoT
+| Industrial Internet of Things
+| Application des technologies de l'IoT au secteur industriel pour optimiser les processus de production.
+| Connectivité
+
+| MQTT
+| Message Queuing Telemetry Transport
+| Protocole de messagerie léger de type publication/abonnement, adapté aux contraintes des objets connectés.
+| Connectivité
+
+| OPC UA
+| Open Platform Communications Unified Architecture
+| Standard de communication interplateforme, orienté objet et sécurisé pour l'échange de données industrielles.
+| Connectivité
+
+| PROFINET
+| Process Field Net
+| Standard Ethernet industriel ouvert conçu pour la collecte de données et le contrôle en temps réel d'équipements d'automatisation.
+| Connectivité
+
+| PROFIBUS
+| Process Field Bus
+| Standard de réseau de terrain sériel utilisé pour relier des automates à des capteurs et actionneurs industriels.
+| Connectivité
+
+| PLC (API)
+| Programmable Logic Controller
+| Automate programmable industriel exécutant des commandes d'asservissement et de régulation.
+| Connectivité
+
+| SCADA
+| Supervisory Control and Data Acquisition
+| Système de télégestion et de contrôle supervisant les installations industrielles à grande échelle.
+| Connectivité
+
+| HMI (IHM)
+| Human-Machine Interface
+| Interface graphique ou matérielle permettant à un opérateur d'interagir avec une machine.
+| Connectivité
+
+| MAC
+| Media Access Control
+| Adresse physique unique attribuée à une carte réseau pour l'identifier au niveau de la couche liaison.
+| Réseau
+
+| BGP
+| Border Gateway Protocol
+| Protocole de routage externe échangeant des informations de routage entre systèmes autonomes sur Internet.
+| Réseau
+
+| OSPF
+| Open Shortest Path First
+| Protocole de routage interne permettant de déterminer le chemin le plus court au sein d'un réseau IP.
+| Réseau
+
+| IAM
+| Identity and Access Management
+| Ensemble de processus et d'outils garantissant que les bonnes personnes accèdent aux bonnes ressources.
+| Cybersécurité
+
+| MFA
+| Multi-Factor Authentication
+| Méthode d'authentification exigeant au moins deux preuves d'identité distinctes avant d'accorder l'accès.
+| Cybersécurité
+
+| DLP
+| Data Loss Prevention
+| Stratégie et outils visant à empêcher la fuite ou l'exfiltration non autorisée de données sensibles.
+| Cybersécurité
+
+| CVE
+| Common Vulnerabilities and Exposures
+| Dictionnaire public répertoriant et identifiant de manière unique les vulnérabilités de sécurité connues.
+| Cybersécurité
+
+| SOC (Sonde)
+| Network Security Sensor / Probe
+| Équipement d'analyse réseau configuré pour capturer, inspecter et remonter le trafic malveillant.
+| Cybersécurité
+
+| PoE
+| Power over Ethernet
+| Technologie permettant d'alimenter un équipement électrique via le câble réseau Ethernet.
+| Connectivité
+
+| RFID
+| Radio Frequency Identification
+| Technologie d'identification automatique utilisant les ondes radio pour lire des données stockées sur une puce.
+| Connectivité
+|===
