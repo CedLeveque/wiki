@@ -7,14 +7,14 @@ Informatique industrielle
 == Configurations et Installations
 
 === VSCode
-* xref:environnementsPythonVsCode.adoc
+* xref:environnementsPythonVsCode.adoc[]
 
 === Linux
-* xref:erreursUbuntu.adoc
+* xref:erreursUbuntu.adoc[]
 
 === Docker
-* xref:installationDockerUbuntu.adoc
-* xref:importExportImagesDocker.adoc
-* xref:installationDockerPortainerRPI.adoc
-* xref:installationChartDBDocker.adoc
+* xref:installationDockerUbuntu.adoc[]
+* xref:importExportImagesDocker.adoc[]
+* xref:installationDockerPortainerRPI.adoc[]
+* xref:installationChartDBDocker.adoc[]
 
